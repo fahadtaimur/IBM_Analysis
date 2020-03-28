@@ -266,12 +266,74 @@ five_year_comp %>%
 
 ```
 
-
-# 
+# 4.0 Business Units
+# 4.1 Cloud / Cognitive Software
 ```{r}
+# Locate the areas and vectorize them
+areas <- locate_areas(pdf, pages = 35)
+areas <- areas %>%
+  pluck(1) %>%
+  as.vector()
 
+areas
+
+# Get the data
+cloud_cognitive <- extract_tables(pdf, 
+                               pages = 35, 
+                               area = list(areas),
+                               guess = F, 
+                               output = "data.frame") %>%
+                as.data.frame()
+
+# Clean
+cloud_cognitive %>%
+    rename(
+    SubArea = names(cloud_cognitive[1]),
+    FY2019 = names(cloud_cognitive[2]),
+    FY2018 = names(cloud_cognitive[3])
+  ) %>%
+    mutate(
+    FY2019 = str_remove_all(FY2019, pattern = "\\,|\\$|\\*|\\%") %>% as.numeric(),
+    FY2018 = str_remove_all(FY2018, pattern = "\\,|\\$|\\*|\\%") %>% as.numeric()
+  ) -> cloud_cognitive_clean; cloud_cognitive_clean
+  
+
+# Save
+cloud_cognitive_clean %>%
+  write.csv("Data_Extracts/cloud_cognitive_softwares.csv")
+
+# Plot
+cloud_cognitive_clean %>%
+  select(SubArea:FY2018) %>%
+  gather(key = Year, value = "value", -SubArea) %>%
+  mutate(year = case_when(
+    Year == "FY2019" ~ 2019,
+    TRUE ~ 2018
+  )) %>%
+  mutate(SubArea = SubArea %>% as_factor() %>% fct_reorder(-value)) %>%
+  ggplot(aes(x = factor(year), y = value, fill = SubArea )) + 
+  geom_col(show.legend = F) + 
+  facet_wrap(~ SubArea) +
+  theme_light() +
+  scale_y_continuous(labels = scales::comma_format()) + 
+  theme(
+     # rectangle background of the facets
+    strip.background = element_rect(color = "black", fill = "black", size = 1),
+    # working on the text in the strips
+    strip.text = element_text(face = "italic")
+  ) + 
+  labs(title = "Revenue by Cloud & Cognitive Segment", 
+       caption = "Cloud / Cognitive Segment with a billion dollar revenue increase") +
+  geom_text(aes(label = scales::dollar(value, scale = 1e-3, suffix = "B", accuracy = 0.1)), vjust = 1.5, color = "white")-> g
+
+# Preview
+g
+
+# Save Image
+png(file="Images/CloudCognitiveRevenue.png", width=800, height=500)
+g
+dev.off()
 ```
-
 
 # 
 ```{r}
