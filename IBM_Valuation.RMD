@@ -1,0 +1,208 @@
+---
+title: "IBM_Valuation.RMD"
+author: "Fahad Taimur"
+date: "3/28/2020"
+output: 
+  html_document:
+    df_print: paged
+    theme: flatly
+    highlight: tango
+    toc: yes
+    toc_depth: 2
+    number_sections: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE, 
+  message= FALSE, 
+  warning= FALSE,
+  out.width = "100%",
+  out.height = "100%",
+  dpi = 300)
+```
+
+# Load the libraries / PDF variable
+```{r}
+library(rJava)
+library(tabulizer)
+library(tidyverse)
+library(write)
+
+# Useful resources
+# https://www.ibm.com/annualreport/assets/downloads/IBM_Annual_Report_2019.pdf
+# https://cran.r-project.org/web/packages/tabulizer/vignettes/tabulizer.html
+
+pdf <- "https://www.ibm.com/annualreport/assets/downloads/IBM_Annual_Report_2019.pdf"
+```
+
+# Financial Highlights - Page 25
+```{r}
+# First half of the financial highlights table
+financial_highlights1 <- extract_areas(pdf, pages = 25, output = "data.frame")
+financial_highlights1
+
+# Second half
+financial_highlights2 <- extract_areas(pdf, pages = 25, output = "data.frame")
+financial_highlights2
+
+# Data Cleaning and Binding
+financial_highlights1 %>%
+  as.data.frame() %>%
+  filter(For.the.year.ended.December.31. != "Earnings per share of common stock—continuing operations") %>%
+  select(-X, -X.1) %>%
+  rename(
+    Concept = For.the.year.ended.December.31.,
+    FY2019 = X2019,
+    FY2018 = X2018
+  ) %>%
+  bind_rows(
+    financial_highlights2 %>%
+      as.data.frame() %>%
+      # Some of the 2018 and 2019 data is in the X and X.1 column
+      mutate(X2019 = case_when(
+        X2019 == "" ~ X,
+        TRUE ~ X2019
+      )) %>%
+      mutate(X2018 = case_when(
+        X2018 == "" ~ X.1,
+        TRUE ~ X2018
+      )) %>%
+      select(-X, -X.1) %>%
+      rename(
+    Concept = At.December.31.,
+    FY2019 = X2019,
+    FY2018 = X2018
+      )
+  ) -> financial_highlights
+
+# Removing special characters and converting to numeric
+financial_highlights %>%
+  mutate(
+    FY2019 = as.numeric(gsub(pattern = "\\,|\\*", replacement = "", x = FY2019))
+  ) %>%
+  filter(Concept != "") -> financial_highlights_clean
+
+financial_highlights_clean %>% writexl::write_xlsx(path = "Data_Extracts/FinancialHighlights.xlsx")
+financial_highlights_clean 
+```
+
+# 
+```{r}
+extract_tables(pdf, pages = 25, output = "data.frame")
+```
+
+
+# 
+```{r}
+
+```
+
+
+# 
+```{r}
+
+```
+
+
+# 
+```{r}
+
+```
+
+
+# 
+```{r}
+
+```
+
+
+# 
+```{r}
+
+```
+
+
+# 
+```{r}
+
+```
+
+
+# 
+```{r}
+
+```
+
+
+# 
+```{r}
+
+```
+
+
+# 
+```{r}
+
+```
+
+
+# 
+```{r}
+
+```
+
+
+# 
+```{r}
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
