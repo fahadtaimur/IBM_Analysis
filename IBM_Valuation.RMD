@@ -27,7 +27,8 @@ knitr::opts_chunk$set(
 library(rJava)
 library(tabulizer)
 library(tidyverse)
-library(write)
+library(writexl)
+library(plotly)
 
 # Useful resources
 # https://www.ibm.com/annualreport/assets/downloads/IBM_Annual_Report_2019.pdf
@@ -36,7 +37,7 @@ library(write)
 pdf <- "https://www.ibm.com/annualreport/assets/downloads/IBM_Annual_Report_2019.pdf"
 ```
 
-# Financial Highlights - Page 25
+# 1.0 Financial Highlights - Page 25
 ```{r}
 # First half of the financial highlights table
 financial_highlights1 <- extract_areas(pdf, pages = 25, output = "data.frame")
@@ -79,7 +80,9 @@ financial_highlights1 %>%
 # Removing special characters and converting to numeric
 financial_highlights %>%
   mutate(
-    FY2019 = as.numeric(gsub(pattern = "\\,|\\*", replacement = "", x = FY2019))
+    # Remove special characters
+    FY2019 = str_remove_all(FY2019, pattern = "\\,|\\$|\\*") %>% as.numeric(),
+    FY2018 = str_remove_all(FY2018, pattern = "\\,|\\$|\\*") %>% as.numeric()
   ) %>%
   filter(Concept != "") -> financial_highlights_clean
 
@@ -87,39 +90,150 @@ financial_highlights_clean %>% writexl::write_xlsx(path = "Data_Extracts/Financi
 financial_highlights_clean 
 ```
 
-# 
+# 2.0 Revenue / GM by Segment ($ in Millions) - Page 35
 ```{r}
-extract_tables(pdf, pages = 25, output = "data.frame")
+segment_revenue_gm <- extract_areas(pdf, pages = 35, output = "data.frame")
+
+# Header Names
+headers <- c("Segment", "FY2019", "FY2018", "Change", "Adj_for_currency")
+
+# Subset
+segment_revenue_gm %>%
+  as.data.frame() %>%
+  slice(-4:length(segment_revenue_gm$X)) -> segment_revenue_gm
+
+# Change column names
+colnames(segment_revenue_gm) <- headers
+
+# Clean FY2018 and 2019
+segment_revenue_gm %>%
+  mutate(
+    FY2019 = str_remove_all(FY2019, pattern = "\\,|\\$|\\*|\\%"),
+    FY2018 = str_remove_all(FY2018, pattern = "\\,|\\$|\\*|\\%")
+  ) -> segment_revenue_gm_clean
+
+# Let's separate gross margins
+segment_revenue_gm_clean %>%
+  mutate(Segment_Lag = lag(Segment)) %>%
+  filter(Segment == "Gross margin") %>%
+  select(Concept = Segment, Segment = Segment_Lag,-Change, -Adj_for_currency, FY2019, FY2018) -> segment_gm_clean
+
+# Gross Margin by Segment
+segment_gm_clean
+segment_gm_clean %>%
+  writexl::write_xlsx("Data_Extracts/BusinessSegmentGrossMarginPercent.xlsx")
+
+# Revenue by Segment
+segment_revenue_gm_clean %>%
+  filter(Segment != "Gross margin") -> segment_revenue_clean
+
+segment_revenue_clean 
+
+segment_revenue_clean %>%
+  writexl::write_xlsx("Data_Extracts/BusinessSegmentRevenue.xlsx")
 ```
 
+# 2.1 Segment Charts - Revenue down by ~ $ 3M 
+```{r fig.height= 8}
+segment_revenue_clean %>%
+  select(Segment:FY2018) %>%
+  gather(key = Year, value = "value", -Segment) %>%
+  mutate(value = as.numeric(value)) %>%
+  arrange(Segment) %>%
+  mutate(year = case_when(
+    Year == "FY2019" ~ 2019,
+    TRUE ~ 2018
+  )) %>%
+  mutate(Segment = Segment %>% as_factor() %>% fct_reorder(-value)) %>%
+  ggplot(aes(x = factor(year), y = value, fill = Segment )) + 
+  geom_col(show.legend = F) + 
+  facet_wrap(~ Segment) +
+  theme_light() +
+  scale_y_continuous(labels = scales::comma_format()) + 
+  theme(
+     # rectangle background of the facets
+    strip.background = element_rect(color = "black", fill = "black", size = 1),
+    # working on the text in the strips
+    strip.text = element_text(face = "italic")
+  ) + 
+  labs(title = "Revenue by Segment and Total - IBM", 
+       caption = "Global Technology and Cloud/Cognitive  \n are the biggest segments") +
+  geom_text(aes(label = scales::dollar(value, scale = 1e-3, suffix = "M", accuracy = 1)), vjust = 1.5, color = "white")-> g
 
-# 
-```{r}
-
+g
 ```
 
-
-# 
+# 2.2 Save as PNG
 ```{r}
-
+png(file="Images/segment_revenues.png", width=800, height=500)
+g
+dev.off()
 ```
 
-
-# 
+# 3.0 Geographic Revenues
 ```{r}
+areas <- locate_areas(pdf, pages = 40)
 
+geo_revenues <- extract_tables(pdf, 
+                               pages = 40, 
+                               area = list(c(291, 88, 345, 512)),
+                               guess = F, 
+                               output = "data.frame") %>%
+                as.data.frame()
+
+
+
+geo_revenues %>%
+  as.data.frame() %>%
+  rename(
+    Region = names(geo_revenues[1]),
+    FY2019 = names(geo_revenues[2]),
+    FY2018 = names(geo_revenues[3])
+  ) %>%
+    mutate(
+    FY2019 = str_remove_all(FY2019, pattern = "\\,|\\$|\\*|\\%") %>% as.numeric(),
+    FY2018 = str_remove_all(FY2018, pattern = "\\,|\\$|\\*|\\%") %>% as.numeric()
+  ) -> geo_revenues_clean
+
+geo_revenues_clean
+
+geo_revenues_clean %>%
+  writexl::write_xlsx("Data_Extracts/RevenueByGeography.xlsx")
 ```
 
-
-# 
+# 3.1 Geographic Chart of Revenues
 ```{r}
+geo_revenues_clean %>%
+  select(Region:FY2018) %>%
+  gather(key = Year, value = "value", -Region) %>%
+  mutate(year = case_when(
+    Year == "FY2019" ~ 2019,
+    TRUE ~ 2018
+  )) %>%
+  mutate(Region = Region %>% as_factor() %>% fct_reorder(-value)) %>%
+  ggplot(aes(x = factor(year), y = value, fill = Region )) + 
+  geom_col(show.legend = F) + 
+  facet_wrap(~ Region) +
+  theme_light() +
+  scale_y_continuous(labels = scales::comma_format()) + 
+  theme(
+     # rectangle background of the facets
+    strip.background = element_rect(color = "black", fill = "black", size = 1),
+    # working on the text in the strips
+    strip.text = element_text(face = "italic")
+  ) + 
+  labs(title = "Revenue by Geography", 
+       caption = "Americas represents ~ 50% of IBM Revenue") +
+  geom_text(aes(label = scales::dollar(value, scale = 1e-3, suffix = "M", accuracy = 1)), vjust = 1.5, color = "white")-> g
 
+g
 ```
 
-
-# 
+# 3.2 Save as PNG 
 ```{r}
-
+png(file="Images/RevenueByGeography.png", width=800, height=500)
+g
+dev.off()
 ```
 
 
