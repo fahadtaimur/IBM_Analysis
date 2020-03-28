@@ -237,8 +237,32 @@ dev.off()
 ```
 
 
-# 
+# 3.3 Five Year Comparison of Select Financial Data (Page 140)
 ```{r}
+areas <- locate_areas(pdf, pages = 140)
+
+five_year_comp <- extract_tables(pdf, 
+                               pages = 140, 
+                               area = list(c(79, 88, 301, 512)),
+                               guess = F, 
+                               output = "data.frame") %>%
+                as.data.frame()
+
+# Wide format
+five_year_comp %>%
+  select(-X, -X.1, -X.2, -X.3, -X.4) %>%
+  filter(X2019. != "") %>%
+  write.csv(file = "Data_Extracts/five_year_comparison_of_key_financials_pg140.csv")
+# Tidy format
+
+
+five_year_comp %>%
+  select(-X, -X.1, -X.2, -X.3, -X.4) %>%
+  filter(X2019. != "") %>%
+  gather(key = Year, value = Value, -names(five_year_comp[1])) %>%
+  rename(Concept = "For.the.year.ended.December.31.") %>%
+  arrange(Concept) %>%
+  mutate(Year = str_remove_all(Year, pattern = "X") %>% as.numeric())
 
 ```
 
