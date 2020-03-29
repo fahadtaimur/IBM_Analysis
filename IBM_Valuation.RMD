@@ -335,74 +335,208 @@ g
 dev.off()
 ```
 
-# 
+# 4.2 Global Technology Services (GTS)
 ```{r}
+# Locate the areas and vectorize them
+areas <- locate_areas(pdf, pages = 37)
+areas <- areas %>%
+  pluck(1) %>%
+  as.vector()
 
+areas
+
+# Get the data
+gts <- extract_tables(pdf, 
+                               pages = 37, 
+                               area = list(areas),
+                               guess = F, 
+                               output = "data.frame") %>%
+                as.data.frame()
+
+# Clean
+gts %>%
+    rename(
+    SubArea = names(gts[1]),
+    FY2019 = names(gts[2]),
+    FY2018 = names(gts[3])
+  ) %>%
+    mutate(
+    FY2019 = str_remove_all(FY2019, pattern = "\\,|\\$|\\*|\\%") %>% as.numeric(),
+    FY2018 = str_remove_all(FY2018, pattern = "\\,|\\$|\\*|\\%") %>% as.numeric()
+  ) -> gts_clean; gts_clean
+  
+
+# Save
+gts_clean %>%
+  write.csv("Data_Extracts/global_technology_services.csv")
+
+# Plot
+gts_clean %>%
+  select(SubArea:FY2018) %>%
+  gather(key = Year, value = "value", -SubArea) %>%
+  mutate(year = case_when(
+    Year == "FY2019" ~ 2019,
+    TRUE ~ 2018
+  )) %>%
+  mutate(SubArea = SubArea %>% as_factor() %>% fct_reorder(-value)) %>%
+  ggplot(aes(x = factor(year), y = value, fill = SubArea )) + 
+  geom_col(show.legend = F) + 
+  facet_wrap(~ SubArea) +
+  theme_light() +
+  scale_y_continuous(labels = scales::comma_format()) + 
+  theme(
+     # rectangle background of the facets
+    strip.background = element_rect(color = "black", fill = "black", size = 1),
+    # working on the text in the strips
+    strip.text = element_text(face = "italic")
+  ) + 
+  labs(title = "Revenue by Global Technology Services", 
+       caption = "Decline of ~ 1.7 billion in GTS") +
+  geom_text(aes(label = scales::dollar(value, scale = 1e-3, suffix = "B", accuracy = 0.1)), vjust = 1.5, color = "white")-> g
+
+# Preview
+g
+
+# Save Image
+png(file="Images/GlobalTechServices.png", width=800, height=500)
+g
+dev.off()
 ```
 
-
-# 
+# 4.3 Systems Revenue 
 ```{r}
+# Locate the areas and vectorize them
+areas <- locate_areas(pdf, pages = 38)
+areas <- areas %>%
+  pluck(1) %>%
+  as.vector()
 
+areas
+
+# Get the data
+systems <- extract_tables(pdf, 
+                         pages = 38, 
+                         area = list(areas),
+                         guess = F, 
+                         output = "data.frame") %>%
+                as.data.frame()
+
+# Clean
+systems %>%
+    rename(
+    SubArea = names(systems[1]),
+    FY2019 = names(systems[2]),
+    FY2018 = names(systems[3])
+  ) %>%
+    mutate(
+    FY2019 = str_remove_all(FY2019, pattern = "\\,|\\$|\\*|\\%") %>% as.numeric(),
+    FY2018 = str_remove_all(FY2018, pattern = "\\,|\\$|\\*|\\%") %>% as.numeric()
+  ) -> systems_clean; systems_clean
+  
+
+# Save
+systems_clean %>%
+  write.csv("Data_Extracts/SystemsRevenue.csv")
+
+# Plot
+systems_clean %>%
+  select(SubArea:FY2018) %>%
+  na.omit() %>%
+  gather(key = Year, value = "value", -SubArea) %>%
+  mutate(year = case_when(
+    Year == "FY2019" ~ 2019,
+    TRUE ~ 2018
+  )) %>%
+  mutate(SubArea = SubArea %>% as_factor() %>% fct_reorder(-value)) %>%
+  ggplot(aes(x = factor(year), y = value, fill = SubArea )) + 
+  geom_col(show.legend = F) + 
+  facet_wrap(~ SubArea) +
+  theme_light() +
+  scale_y_continuous(labels = scales::comma_format()) + 
+  theme(
+     # rectangle background of the facets
+    strip.background = element_rect(color = "black", fill = "black", size = 1),
+    # working on the text in the strips
+    strip.text = element_text(face = "italic")
+  ) + 
+  labs(title = "Revenue of Systems", 
+       caption = "Decline in Systems Hardware segement") +
+  geom_text(aes(label = scales::dollar(value, scale = 1e-3, suffix = "B", accuracy = 0.1)), vjust = 1.5, color = "white")-> g
+
+# Preview
+g
+
+# Save Image
+png(file="Images/SystemsRevenue.png", width=800, height=500)
+g
+dev.off()
 ```
 
-
-# 
+# 4.4 Global Busines Services 
 ```{r}
+# Locate the areas and vectorize them
+areas <- locate_areas(pdf, pages = 36)
+areas <- areas %>%
+  pluck(1) %>%
+  as.vector()
 
+areas
+
+# Get the data
+gbs <- extract_tables(pdf, 
+                     pages = 36, 
+                     area = list(areas),
+                     guess = F, 
+                     output = "data.frame") %>%
+                as.data.frame()
+
+# Clean
+gbs %>%
+    rename(
+    SubArea = names(gbs[1]),
+    FY2019 = names(gbs[2]),
+    FY2018 = names(gbs[3])
+  ) %>%
+    mutate(
+    FY2019 = str_remove_all(FY2019, pattern = "\\,|\\$|\\*|\\%") %>% as.numeric(),
+    FY2018 = str_remove_all(FY2018, pattern = "\\,|\\$|\\*|\\%") %>% as.numeric()
+  ) -> gbs_clean; gbs_clean
+  
+
+# Save
+gbs_clean %>%
+  write.csv("Data_Extracts/global_business_services.csv")
+
+# Plot
+gbs_clean %>%
+  select(SubArea:FY2018) %>%
+  gather(key = Year, value = "value", -SubArea) %>%
+  mutate(year = case_when(
+    Year == "FY2019" ~ 2019,
+    TRUE ~ 2018
+  )) %>%
+  mutate(SubArea = SubArea %>% as_factor() %>% fct_reorder(-value)) %>%
+  ggplot(aes(x = factor(year), y = value, fill = SubArea )) + 
+  geom_col(show.legend = F) + 
+  facet_wrap(~ SubArea) +
+  theme_light() +
+  scale_y_continuous(labels = scales::comma_format()) + 
+  theme(
+     # rectangle background of the facets
+    strip.background = element_rect(color = "black", fill = "black", size = 1),
+    # working on the text in the strips
+    strip.text = element_text(face = "italic")
+  ) + 
+  labs(title = "Revenue by Global Business Services", 
+       caption = "GBS segment has maintained sales from 2018 to 2019") +
+  geom_text(aes(label = scales::dollar(value, scale = 1e-3, suffix = "B", accuracy = 0.1)), vjust = 1.5, color = "white")-> g
+
+# Preview
+g
+
+# Save Image
+png(file="Images/GlobalBusinessServices.png", width=800, height=500)
+g
+dev.off()
 ```
-
-
-# 
-```{r}
-
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
