@@ -29,6 +29,7 @@ library(tabulizer)
 library(tidyverse)
 library(writexl)
 library(plotly)
+library(readxl)
 
 # Useful resources
 # https://www.ibm.com/annualreport/assets/downloads/IBM_Annual_Report_2019.pdf
@@ -539,4 +540,86 @@ png(file="Images/GlobalBusinessServices.png", width=800, height=500)
 g
 dev.off()
 ```
+
+# 5.0 Regression Analysis - IBM Brand Value
+# 5.1 Data
+```{r}
+# Let's use the 5-years of data 
+bv_data <- readxl::read_excel("IBM_Brand_Value.xlsx")
+
+bv_data %>%
+  filter(Year %>% between(2005, 2013)) -> reg_data
+
+bv_ts <- ts(data = reg_data[,2], start = 2005, frequency = 1)
+bv_ts
+```
+
+# 5.2 Regression
+```{r}
+library(tseries)
+library(forecast)
+
+# Perform time-series regression of the brand value
+reg <- tslm(BrandValue ~ trend, data = bv_ts)
+summary(reg)
+```
+# 5.3 Regression Diagnostics
+```{r}
+# Setting up a hypothesis test for autocorrelation:
+# null: there is no autocorrelation in the residuals
+# alternative: there is serial autocorrelation
+# There is not significant autocorrelation as shown by the p-value and ACF plot
+
+# Residual distribution is not normal and residuals display a varying pattern
+
+checkresiduals(reg)
+
+# Testing the magnitude of error
+# RMSE of ~2.1B$ 
+bind_cols(Actual = bv_ts[,1], Fitted = reg$fitted.values) %>%
+  as_tibble() %>%
+  mutate(Actual = as.numeric(Actual), 
+         Fitted = as.numeric(Fitted)) %>%
+  yardstick::metrics(truth = Actual, estimate = Fitted)
+
+# % error ~ 3%
+
+rmse <- 2100
+rmse/mean(bv_data %>% filter(Year %>% between(2005, 2013)) %>% select(BrandValue) %>% pull())
+```
+
+# 5.3 Forecast vs. Actual
+```{r}
+bv_forecast <- forecast(reg, h = 6)
+
+# Bind the Actual to the Forecasted values
+bv_forecast %>% 
+  as.tibble() %>% 
+  janitor::clean_names() %>%
+  select(Forecast = point_forecast) %>%
+  pull(Forecast)-> bv_forecast
+
+bv_forecast_vector <- c(rep.int(NA_integer_, 8), 78808, bv_forecast)
+
+bv_data %>%
+  filter(Year %>% between(2005, 2019)) -> bv_data
+
+bind_cols(
+  Year = bv_data$Year,
+  Actual_BV = bv_data$BrandValue,
+  Forecasted = round(bv_forecast_vector)
+) -> bv_actual_forecasted
+
+bv_actual_forecasted %>%
+  write_csv("brand_value_actual_vs_forecasted.csv")
+```
+
+# Plot of Demise
+```{r}
+dygraphs::dygraph(bv_actual_forecasted)
+```
+
+
+
+
 
